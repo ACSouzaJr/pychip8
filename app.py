@@ -1,8 +1,9 @@
-from pychip8 import chip8
+""" Main file for running emulator """
+import pychip8
 
 
 def main():
-    print(chip8.chip8())
+    pychip8.run()
 
 
 if __name__ == "__main__":
