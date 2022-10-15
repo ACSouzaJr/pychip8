@@ -52,32 +52,72 @@ Sound Timer: active when register ST (sound timer register) is non-zero. The tim
 
 36 instructions: math, graphics, and flow control.
 
-all instructions is 2 bytes long, msb first.
+all instructions is '2 bytes long', msb first.
 """
-from dataclasses import dataclass, field
+import pygame
+import logging
 from pygame.surface import Surface
+from dataclasses import dataclass, field
+from pychip8 import instructions as inst
 
 from pychip8.window import create_window
+
+# Create logger
+logger = logging.getLogger(__name__)
+# Config logger
+formatter = logging.Formatter("%(asctime)s:%(name)s:%(levelname)s:%(message)s")
+stream_handler = logging.StreamHandler()
+stream_handler.setFormatter(formatter)
+# Enable logger
+logger.addHandler(stream_handler)
+logger.setLevel(logging.INFO)
 
 
 @dataclass
 class Registers:
-    i: int = 0
-    pc: int = 0
-    sp: int = 0
-    vx: list[int] = field(default_factory=lambda: [0 for _ in range(0xF)])
+    i: int = 0  # instruction register
+    pc: int = 0x200  # program counter
+    sp: int = 0  # stack pointer
+    dt: int = 0  # delay timer
+    st: int = 0  # sound timer
+    v: list[int] = field(default_factory=lambda: [0 for _ in range(0x10)])  # 16
 
 
 @dataclass
 class Memory:
-    ram: list[int] = field(default_factory=lambda: [0 for _ in range(0xFFF)])
-    sp: list[int] = field(
-        default_factory=lambda: [0 for _ in range(0x10)])    # 16
-    display: list[int] = field(
-        default_factory=lambda: [0 for _ in range(64 * 32)])
+    ram: list[int] = field(default_factory=lambda: [0 for _ in range(0x1000)])  # 4096
+    stack: list[int] = field(default_factory=lambda: [0 for _ in range(0x10)])  # 16
+    display: list[int] = field(default_factory=lambda: [0 for _ in range(64 * 32)])
 
     def __post_init__(self):
-        ...
+        # yapf: disable
+        hexadecimal_sprites = [
+            0xF0, 0x90, 0x90, 0x90, 0xF0,   # 0
+            0x20, 0x60, 0x20, 0x20, 0x70,   # 1
+            0xF0, 0x10, 0xF0, 0x80, 0xF0,   # 2
+            0xF0, 0x10, 0xF0, 0x10, 0xF0,   # 3
+            0x90, 0x90, 0xF0, 0x10, 0x10,   # 4
+            0xF0, 0x80, 0xF0, 0x10, 0xF0,   # 5
+            0xF0, 0x80, 0xF0, 0x90, 0xF0,   # 6
+            0xF0, 0x10, 0x20, 0x40, 0x40,   # 7
+            0xF0, 0x90, 0xF0, 0x90, 0xF0,   # 8
+            0xF0, 0x90, 0xF0, 0x10, 0xF0,   # 9
+            0xF0, 0x90, 0xF0, 0x90, 0x90,   # A
+            0xE0, 0x90, 0xE0, 0x90, 0xE0,   # B
+            0xF0, 0x80, 0x80, 0x80, 0xF0,   # C
+            0xE0, 0x90, 0x90, 0x90, 0xE0,   # D
+            0xF0, 0x80, 0xF0, 0x80, 0xF0,   # E
+            0xF0, 0x80, 0xF0, 0x80, 0x80    # F
+        ]
+        # yapf: enable
+
+        for i, sprite in enumerate(hexadecimal_sprites):
+            self.ram[i] = sprite
+
+    def load_rom(self, rom_filepath: str):
+        with open(rom_filepath, "rb") as f:
+            for i, byte in enumerate(f.read()):
+                self.ram[0x200 + i] = byte
 
 
 @dataclass
@@ -96,3 +136,150 @@ class Chip8:
     registers: Registers = Registers()
     memory: Memory = Memory()
     display: Display = Display()
+
+
+def get_opcode(chip8: Chip8):
+    """Get next opcode on ram."""
+
+    msb = chip8.memory.ram[chip8.registers.pc]
+    lsb = chip8.memory.ram[chip8.registers.pc + 1]
+
+    chip8.registers.pc += 2
+
+    return msb, lsb
+
+
+def tick(chip8: Chip8):
+    """Execute a single instruction
+
+    Execute one cycle of the Fetch-Decode-Execute loop.
+    """
+    ## Fetch
+    msb, lsb = get_opcode(chip8)  # 16 bits
+
+    opcode = (msb << 8) | lsb
+
+    op = opcode & 0xF000  # 4 highest byte
+    addr = opcode & 0xFFF  # 12 lowest bits
+    n = opcode & 0xF  # 4 lowest bits
+    x = msb & 0xF  # 4 lowest bits of the msb
+    y = (lsb & 0xF0) >> 4  # 4 upper bits of the lsb
+    byte = lsb  # 8 bit lowest value
+
+    logger.debug(f"OPCODE 0x{opcode:02X}")
+    logger.debug(
+        f"OP 0x{op:02X}, ADDR 0x{addr:02X}, X 0x{x:02X}, Y 0x{y:02X}, BYTE 0x{byte:02X}, N 0x{n:02X}"
+    )
+
+    ## Decode
+    match op:
+        case 0x0:
+            match byte:
+                case 0xE0:
+                    inst.cls(chip8)  # Execute
+                case 0xEE:
+                    inst.ret(chip8)
+        case 0x1000:
+            inst.jump(chip8, addr=addr)
+        case 0x2000:
+            inst.call(chip8, addr=addr)
+        case 0x3000:
+            inst.se_byte(chip8, x=x, byte=byte)
+        case 0x4000:
+            inst.sne_byte(chip8, x=x, byte=byte)
+        case 0x5000:
+            inst.se(chip8, x=x, y=y)
+        case 0x6000:
+            inst.ld_byte(chip8, x=x, byte=byte)
+        case 0x7000:
+            inst.add_byte(chip8, x=x, byte=byte)
+        case 0x8000:
+            match n:
+                case 0x0:
+                    inst.ld(chip8, x=x, y=y)
+                case 0x1:
+                    inst.or_(chip8, x=x, y=y)
+                case 0x2:
+                    inst.and_(chip8, x=x, y=y)
+                case 0x3:
+                    inst.xor_(chip8, x=x, y=y)
+                case 0x4:
+                    inst.add(chip8, x=x, y=y)
+                case 0x5:
+                    inst.sub(chip8, x=x, y=y)
+                case 0x6:
+                    inst.shr(chip8, x=x, y=y)
+                case 0x7:
+                    inst.subn(chip8, x=x, y=y)
+                case 0xE:
+                    inst.shl(chip8, x=x, y=y)
+        case 0x9000:
+            inst.sne(chip8, x=x, y=y)
+        case 0xA000:
+            inst.ldi(chip8, addr=addr)
+        case 0xB000:
+            inst.branch(chip8, addr=addr)
+        case 0xC000:
+            inst.rnd(chip8, x=x, byte=byte)
+        case 0xD000:
+            inst.draw(chip8, x=x, y=y, n=n)
+        case 0xE000:
+            match byte:
+                case 0x9E:
+                    inst.skp(chip8, x=x)
+                case 0xA1:
+                    inst.sknp(chip8, x=x)
+        case 0xF000:
+            match byte:
+                case 0x07:
+                    inst.ld_dt(chip8, x=x)
+                case 0x0A:
+                    inst.ld_kp(chip8, x=x)
+                case 0x15:
+                    inst.set_dt(chip8, x=x)
+                case 0x18:
+                    inst.set_st(chip8, x=x)
+                case 0x1E:
+                    inst.addi(chip8, x=x)
+                case 0x29:
+                    inst.ld_sprite(chip8, x=x)
+                case 0x33:
+                    inst.store_bcd(chip8, x=x)
+                case 0x55:
+                    inst.ld_v(chip8)
+                case 0x65:
+                    inst.store_v(chip8)
+
+
+def draw(chip8: Chip8):
+    """Draw to display based on memory."""
+    WHITE = (255, 255, 255)
+    BLACK = (0, 0, 0)
+    color_pallete = {0: BLACK, 1: WHITE}
+
+    scale = chip8.display.scale
+
+    for y in range(chip8.display.height):
+        for x in range(chip8.display.width):
+
+            # logger.debug("DRAW y: %d" % (y))
+            # logger.debug("DRAW x: %d" % (x))
+
+            index_pos = y * chip8.display.width + x
+            pixel = chip8.memory.display[index_pos]
+            pygame.draw.rect(
+                chip8.display.screen,
+                color_pallete[pixel],
+                [x * scale, y * scale, scale, scale],
+                0,
+            )
+    pygame.display.flip()
+
+
+def update_timers(chip8: Chip8):
+    """Update built in timers"""
+    if chip8.registers.dt > 0:
+        chip8.registers.dt -= 1
+
+    if chip8.registers.st > 0:
+        chip8.registers.st -= 1
