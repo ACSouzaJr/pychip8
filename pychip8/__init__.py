@@ -15,9 +15,13 @@ def run(rom_filepath: str):
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit()
+                return
+            if event.type == pygame.KEYDOWN:
+                chip8_emulator.keyboard.set_key(event.key, True)
+            if event.type == pygame.KEYUP:
+                chip8_emulator.keyboard.set_key(event.key, False)
 
-        for _ in range(10):
+        for _ in range(5):
             chip8.tick(chip8_emulator)
 
         chip8.update_timers(chip8_emulator)

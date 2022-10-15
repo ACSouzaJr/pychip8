@@ -84,6 +84,42 @@ class Registers:
 
 
 @dataclass
+class Keyboard:
+    pressed_keys: list[bool] = field(
+        default_factory=lambda: [False for _ in range(0x10)]
+    )  # 16
+    key_mapper = {
+        49: 0x1,  # 1
+        50: 0x2,  # 2
+        51: 0x3,  # 3
+        52: 0xC,  # 4
+        113: 0x4,  # Q
+        119: 0x5,  # W
+        101: 0x6,  # E
+        114: 0xD,  # R
+        97: 0x7,  # A
+        115: 0x8,  # S
+        100: 0x9,  # D
+        102: 0xE,  # F
+        122: 0xA,  # Z
+        120: 0x0,  # X
+        99: 0xB,  # C
+        118: 0xF,  # V
+    }
+
+    def set_key(self, key: int, value=True):
+        """Set equivalent keyboard keys to Chip-8."""
+        try:
+            key = self.key_mapper[key]
+            self.pressed_keys[key] = value
+        except KeyError:
+            print("Invalid key pressed!")
+
+    def is_pressed(self, key: int) -> bool:
+        return self.pressed_keys[key]
+
+
+@dataclass
 class Memory:
     ram: list[int] = field(default_factory=lambda: [0 for _ in range(0x1000)])  # 4096
     stack: list[int] = field(default_factory=lambda: [0 for _ in range(0x10)])  # 16
@@ -136,6 +172,7 @@ class Chip8:
     registers: Registers = Registers()
     memory: Memory = Memory()
     display: Display = Display()
+    keyboard: Keyboard = Keyboard()
 
 
 def get_opcode(chip8: Chip8):
@@ -246,9 +283,9 @@ def tick(chip8: Chip8):
                 case 0x33:
                     inst.store_bcd(chip8, x=x)
                 case 0x55:
-                    inst.ld_v(chip8)
+                    inst.store_v(chip8, x=x)
                 case 0x65:
-                    inst.store_v(chip8)
+                    inst.ld_v(chip8, x=x)
 
 
 def draw(chip8: Chip8):
