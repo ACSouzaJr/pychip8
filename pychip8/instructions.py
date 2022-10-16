@@ -276,7 +276,6 @@ def draw(chip8: "Chip8", x: int, y: int, n: int):
     """
 
     # reset flag
-    chip8.registers.v[0xF] = 0
 
     # position
     ## wrap around coords
@@ -308,7 +307,9 @@ def draw(chip8: "Chip8", x: int, y: int, n: int):
             chip8.memory.display[index_pos] ^= bit
 
             # check if pixel as erased
-            chip8.registers.v[0xF] = old_bit and not chip8.memory.display[index_pos]
+            chip8.registers.v[0xF] = int(
+                old_bit and not chip8.memory.display[index_pos]
+            )
 
             # go to nex bit
             pixels <<= 1
