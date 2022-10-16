@@ -1,9 +1,13 @@
+import sys
 import pygame
-from pychip8 import chip8
+
+## Pygame set-up
+pygame.init()
 
 
 def run(rom_filepath: str):
     """Run Chip-8 emulator."""
+    from pychip8 import chip8
 
     assert rom_filepath is not None and rom_filepath.strip() != ""
 
@@ -15,7 +19,8 @@ def run(rom_filepath: str):
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                return
+                pygame.quit()
+                sys.exit()
             if event.type == pygame.KEYDOWN:
                 chip8_emulator.keyboard.set_key(event.key, True)
             if event.type == pygame.KEYUP:

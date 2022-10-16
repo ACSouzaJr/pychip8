@@ -168,11 +168,17 @@ class Display:
 
 
 @dataclass
+class Sound:
+    beep = pygame.mixer.Sound("assets/beep.wav")
+
+
+@dataclass
 class Chip8:
     registers: Registers = Registers()
     memory: Memory = Memory()
     display: Display = Display()
     keyboard: Keyboard = Keyboard()
+    sound: Sound = Sound()
 
 
 def get_opcode(chip8: Chip8):
@@ -319,4 +325,7 @@ def update_timers(chip8: Chip8):
         chip8.registers.dt -= 1
 
     if chip8.registers.st > 0:
+        chip8.sound.beep.play()
         chip8.registers.st -= 1
+    elif chip8.registers.st == 0:
+        chip8.sound.beep.stop()
