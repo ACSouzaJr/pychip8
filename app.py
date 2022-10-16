@@ -8,7 +8,7 @@ def main():
     parser.add_argument(
         "--rom",
         type=str,
-        default="roms/PONG.ch8",
+        default="roms/test_opcode.ch8",
         help="Chip-8 ROM filepath.",
     )
     args = parser.parse_args()

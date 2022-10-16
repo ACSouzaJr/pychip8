@@ -1,5 +1,13 @@
 # pychip8
-Chip-8 emulator with python
+
+Chip-8 emulator with python.
+
+> [Chip-8](https://en.wikipedia.org/wiki/CHIP-8) is a simple, interpreted, programming language which was first used on some do-it-yourself computer systems in the late 1970s and early 1980s.
+
+<div align="center">
+  <image src="assets/img/test_opcode_results.png"/>
+  <small><strong>Source: </strong><a href="https://github.com/corax89/chip8-test-rom"></a>test_opcode.ch8</small>
+</div>
 
 ## Requirements
 
@@ -13,13 +21,13 @@ Chip-8 emulator with python
   cd pychip8
   pip install -r requirements.txt
  ```
- 
- ## Run it
- 
+
+## Run it
+
  ```bash
  python app.py --rom <path-to-rom>
  ```
- 
+
 ## Play it
 
 <table>
