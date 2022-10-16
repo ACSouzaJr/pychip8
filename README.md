@@ -6,7 +6,7 @@ Chip-8 emulator with python.
 
 <div align="center">
   <image src="assets/img/test_opcode_results.png"/>
-  <small><strong>Source: </strong><a href="https://github.com/corax89/chip8-test-rom"></a>test_opcode.ch8</small>
+  <small><strong>Source: </strong><a href="https://github.com/corax89/chip8-test-rom">test_opcode.ch8</a></small>
 </div>
 
 ## Requirements
